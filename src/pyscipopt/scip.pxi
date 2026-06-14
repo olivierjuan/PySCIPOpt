@@ -10018,6 +10018,17 @@ cdef class Model:
         cutsel.model = self
         self._plugins.append(cutsel)
 
+    cdef executeBranchRule(self, str name, allowaddcons):
+        cdef SCIP_BRANCHRULE* branchrule
+        cdef SCIP_BRANCHRULEDATA* branchruledata
+        branchrule = SCIPfindBranchrule(self._scip, name.encode("UTF-8"))
+        if branchrule == NULL:
+            print("Error, branching rule not found!")
+            return PY_SCIP_RESULT.DIDNOTFIND
+        branchruledata = SCIPbranchruleGetData(branchrule)
+        PyBranchrule = <Branchrule>branchruledata
+        return PyBranchrule.branchexeclp(allowaddcons)
+
     def includeBranchrule(self, Branchrule branchrule, name, desc, priority, maxdepth, maxbounddist):
         """
         Include a branching rule.
