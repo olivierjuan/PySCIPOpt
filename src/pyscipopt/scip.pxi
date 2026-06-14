@@ -10018,7 +10018,7 @@ cdef class Model:
         cutsel.model = self
         self._plugins.append(cutsel)
 
-    cdef executeBranchRule(self, str name, allowaddcons):
+    def executeBranchRule(self, str name, allowaddcons):
         cdef SCIP_BRANCHRULE* branchrule
         cdef SCIP_BRANCHRULEDATA* branchruledata
         branchrule = SCIPfindBranchrule(self._scip, name.encode("UTF-8"))
