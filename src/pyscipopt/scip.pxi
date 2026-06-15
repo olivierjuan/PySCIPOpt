@@ -15,12 +15,13 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPo
 from libc.stdlib cimport malloc, free
 from libc.stdio cimport stdout, stderr, fdopen, fputs, fflush, fclose
 from posix.stdio cimport fileno
-from numpy.math cimport INFINITY, NAN
-from libc.math cimport sqrt as SQRT
+from libc.math cimport INFINITY, NAN, sqrt as SQRT
 
 cdef extern from *:
     """
     #include "scip/struct_branch.h"
+    #include "scip/struct_lp.h"
+    #include "scip/struct_scip.h"
 
     static SCIP_RETCODE _callBranchruleExeclp(SCIP* scip, SCIP_BRANCHRULE* branchrule,
                                                SCIP_Bool allowaddcons, SCIP_RESULT* result) {
@@ -30,9 +31,34 @@ cdef extern from *:
         }
         return branchrule->branchexeclp(scip, branchrule, allowaddcons, result);
     }
+
+    static void _SCIPlpRecalculateObjSqrNorm(SCIP_SET* set, SCIP_LP* lp) {
+        if (lp->objsqrnormunreliable) {
+            SCIP_COL** cols = lp->cols;
+            int c;
+            lp->objsqrnorm = 0.0;
+            for (c = lp->ncols - 1; c >= 0; --c) {
+                lp->objsqrnorm += SQR(cols[c]->unchangedobj);
+            }
+            lp->objsqrnorm = MAX(lp->objsqrnorm, 0.0);
+            lp->objsqrnormunreliable = FALSE;
+        }
+    }
+
+    static SCIP_SET* _scip_set(SCIP* scip)         { return scip->set; }
+    static SCIP_LP*  _scip_lp(SCIP* scip)          { return scip->lp; }
+    static SCIP_Real _lp_objsqrnorm(SCIP_LP* lp)   { return lp->objsqrnorm; }
+    static SCIP_Real _row_sqrnorm(SCIP_ROW* row)    { return row->sqrnorm; }
+    static SCIP_Real _row_objprod(SCIP_ROW* row)    { return row->objprod; }
     """
     SCIP_RETCODE _callBranchruleExeclp(SCIP* scip, SCIP_BRANCHRULE* branchrule,
                                         SCIP_Bool allowaddcons, SCIP_RESULT* result)
+    void  _SCIPlpRecalculateObjSqrNorm(SCIP_SET* set, SCIP_LP* lp)
+    SCIP_SET* _scip_set(SCIP* scip)
+    SCIP_LP*  _scip_lp(SCIP* scip)
+    SCIP_Real _lp_objsqrnorm(SCIP_LP* lp)
+    SCIP_Real _row_sqrnorm(SCIP_ROW* row)
+    SCIP_Real _row_objprod(SCIP_ROW* row)
 
 from collections.abc import Iterable
 from itertools import repeat
@@ -10236,8 +10262,10 @@ cdef class Model:
                 row_is_modifiable[i] = SCIProwIsModifiable(rows[i])
                 row_is_removable[i] = SCIProwIsRemovable(rows[i])
 
-                # Objective cosine similarity
-                row_objcossims[i] = SCIPgetRowObjParallelism(scip, rows[i])
+                # Objective cosine similarity - inspired from SCIProwGetObjParallelism()
+                _SCIPlpRecalculateObjSqrNorm(_scip_set(scip), _scip_lp(scip))
+                prod = _row_sqrnorm(rows[i]) * _lp_objsqrnorm(_scip_lp(scip))
+                row_objcossims[i] = _row_objprod(rows[i]) / SQRT(prod) if SCIPisPositive(scip, prod) else 0.0
 
                 # L2 norm
                 row_norms[i] = SCIProwGetNorm(rows[i])  # cst ?

@@ -2157,6 +2157,14 @@ cdef extern from "scip/branch_vanillafullstrong.h":
     SCIP_RETCODE SCIPgetVanillafullstrongData(SCIP* scip, SCIP_VAR*** cands, SCIP_Real** candscores,
                                               int* ncands, int* npriocands, int* bestcand)
 
+cdef extern from "scip/type_set.h":
+    ctypedef struct SCIP_SET:
+        pass
+
+cdef extern from "scip/type_lp.h":
+    ctypedef struct SCIP_LP:
+        pass
+
 cdef class ExprLike:
     pass
 
