@@ -2142,6 +2142,9 @@ cdef extern from "scip/scip_tree.h":
     SCIP_NODE* SCIPgetBestboundNode(SCIP* scip)
     SCIP_RETCODE SCIPrepropagateNode(SCIP* scip, SCIP_NODE* node)
 
+cdef extern from "scip/def.h":
+    SCIP_Real REALABS(SCIP_Real x)
+
 cdef extern from "scip/scip_var.h":
     SCIP_RETCODE SCIPchgVarBranchPriority(SCIP* scip, SCIP_VAR* var, int branchpriority)
 
@@ -2149,6 +2152,10 @@ cdef extern from "scip/scip_var.h":
 
 cdef extern from "tpi/tpi.h":
     int SCIPtpiGetNumThreads()
+
+cdef extern from "scip/branch_vanillafullstrong.h":
+    SCIP_RETCODE SCIPgetVanillafullstrongData(SCIP* scip, SCIP_VAR*** cands, SCIP_Real** candscores,
+                                              int* ncands, int* npriocands, int* bestcand)
 
 cdef class ExprLike:
     pass
